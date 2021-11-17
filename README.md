@@ -50,6 +50,29 @@ The HTTP requests to `www.example.com` and `simonwillison.net` will be performed
 
 The library will notice that `both()` takes two arguments which are the names of other `async def` methods on that class, and will construct an execution plan that executes those two methods in parallel, then passes their results to the `both()` method.
 
+### Parameters are passed through
+
+Your dependent methods can require keyword arguments which are passed to the original method.
+
+```python
+class FetchWithParams(AsyncInjectAll):
+    async def get_param_1(self, param1):
+        return await get(param1)
+
+    async def get_param_2(self, param2):
+        return await get(param2)
+
+    async def both(self, get_param_1, get_param_2):
+        return get_param_1 + "\n\n" + get_param_2
+
+
+combined = await FetchWithParams().both(
+    param1 = "http://www.example.com/",
+    param2 = "https://simonwillison.net/search/?tag=empty"
+)
+print(combined)
+```
+
 ### AsyncInject and @inject
 
 The above example illustrates the `AsyncInjectAll` class, which assumes that every `async def` method on the class should be treated as a dependency injection method.

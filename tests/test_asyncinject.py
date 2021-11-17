@@ -55,6 +55,17 @@ class WithParameters(AsyncInjectAll):
         return 6
 
 
+class WithParametersComplex(AsyncInjectAll):
+    async def go(self, calc1, calc2, param1):
+        return calc1 + calc2
+
+    async def calc1(self):
+        return 5
+
+    async def calc2(self, param1):
+        return 6 + param1
+
+
 @pytest.mark.asyncio
 async def test_simple():
     assert await Simple().one() == ["two", "one"]
@@ -84,6 +95,12 @@ async def test_with_parameters():
             "The following DI parameters could not be "
             "found in the registry: ['param1']"
         )
+
+
+@pytest.mark.asyncio
+async def test_parameters_passed_through():
+    result = await WithParametersComplex().go(param1=1)
+    assert result == 12
 
 
 @pytest.mark.asyncio

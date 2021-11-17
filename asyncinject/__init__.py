@@ -27,9 +27,8 @@ class AsyncInjectMeta(type):
         new_attrs = {"_registry": _registry}
         inject_all = "AsyncInjectAll" in (b.__name__ for b in bases)
         for key, value in attrs.items():
-            if (
-                inspect.iscoroutinefunction(value)
-                and (inject_all or getattr(value, "_inject", None))
+            if inspect.iscoroutinefunction(value) and (
+                inject_all or getattr(value, "_inject", None)
             ):
                 new_attrs[key] = _make_method(value)
                 _registry[key] = new_attrs[key]
@@ -52,7 +51,7 @@ def _make_method(method):
     parameters = inspect.signature(method).parameters.keys()
 
     @wraps(method)
-    async def inner(self, _results=None, **kwargs):
+    async def inner(self, **kwargs):
         # Any parameters not provided by kwargs are resolved from registry
         to_resolve = [p for p in parameters if p not in kwargs and p != "self"]
         missing = [p for p in to_resolve if p not in self._registry]
@@ -65,12 +64,11 @@ def _make_method(method):
         results = {}
         results.update(kwargs)
         if to_resolve:
-            resolved_parameters = await resolve(self, to_resolve, _results)
+            resolved_parameters = await resolve(self, to_resolve, results)
             results.update(resolved_parameters)
-        return_value = await method(self, **results)
-        if _results is not None:
-            _results[method.__name__] = return_value
-        return return_value
+        return await method(
+            self, **{k: v for k, v in results.items() if k in parameters}
+        )
 
     return inner
 
@@ -93,7 +91,7 @@ async def resolve(instance, names, results=None):
     done = set()
     while to_do:
         item = to_do.pop()
-        dependencies = instance._graph[item]
+        dependencies = instance._graph.get(item) or set()
         ts.add(item, *dependencies)
         done.add(item)
         # Add any not-done dependencies to the queue
@@ -106,7 +104,6 @@ async def resolve(instance, names, results=None):
         plan.append(node_group)
         ts.done(*node_group)
 
-    results = {}
     for node_group in plan:
         awaitables = [
             instance._registry[name](
@@ -115,10 +112,11 @@ async def resolve(instance, names, results=None):
                 **{k: v for k, v in results.items() if k in instance._graph[name]},
             )
             for name in node_group
+            if name in instance._registry
         ]
         awaitable_results = await asyncio.gather(*awaitables)
         results.update(
             {p[0].__name__: p[1] for p in zip(awaitables, awaitable_results)}
         )
 
-    return {key: value for key, value in results.items() if key in names}
+    return results
