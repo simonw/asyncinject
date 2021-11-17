@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from asyncinject import AsyncInject, AsyncInjectAll, inject
+from asyncinject import AsyncInject, AsyncInjectAll, inject, resolve
 from random import random
 
 
@@ -84,3 +84,10 @@ async def test_with_parameters():
             "The following DI parameters could not be "
             "found in the registry: ['param1']"
         )
+
+
+@pytest.mark.asyncio
+async def test_resolve():
+    object = WithParameters()
+    result = await resolve(object, ("calc1", "calc2"))
+    assert result == {"calc1": 5, "calc2": 6}
