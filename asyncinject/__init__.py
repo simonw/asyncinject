@@ -29,7 +29,6 @@ class AsyncInjectMeta(type):
         for key, value in attrs.items():
             if (
                 inspect.iscoroutinefunction(value)
-                and not value.__name__ == "resolve"
                 and (inject_all or getattr(value, "_inject", None))
             ):
                 new_attrs[key] = _make_method(value)
