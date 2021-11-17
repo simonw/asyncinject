@@ -72,6 +72,21 @@ combined = await FetchWithParams().both(
 )
 print(combined)
 ```
+### Parameters with default values are ignored
+
+You can opt a parameter out of the dependency injection mechanism by assigning it a default value:
+
+```python
+class IgnoreDefaultParameters(AsyncInjectAll):
+    async def go(self, calc1, x=5):
+        return calc1 + x
+
+    async def calc1(self):
+        return 5
+
+print(await IgnoreDefaultParameters().go())
+# Prints 10
+```
 
 ### AsyncInject and @inject
 

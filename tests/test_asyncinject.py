@@ -66,6 +66,14 @@ class WithParametersComplex(AsyncInjectAll):
         return 6 + param1
 
 
+class IgnoreDefaultParameters(AsyncInjectAll):
+    async def go(self, calc1, x=5):
+        return calc1 + x
+
+    async def calc1(self):
+        return 5
+
+
 @pytest.mark.asyncio
 async def test_simple():
     assert await Simple().one() == ["two", "one"]
@@ -101,6 +109,12 @@ async def test_with_parameters():
 async def test_parameters_passed_through():
     result = await WithParametersComplex().go(param1=1)
     assert result == 12
+
+
+@pytest.mark.asyncio
+async def test_ignore_default_parameters():
+    result = await IgnoreDefaultParameters().go()
+    assert result == 10
 
 
 @pytest.mark.asyncio

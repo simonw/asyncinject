@@ -48,12 +48,21 @@ class AsyncInjectMeta(type):
 
 
 def _make_method(method):
-    parameters = inspect.signature(method).parameters.keys()
+    parameters = inspect.signature(method).parameters
 
     @wraps(method)
     async def inner(self, **kwargs):
         # Any parameters not provided by kwargs are resolved from registry
-        to_resolve = [p for p in parameters if p not in kwargs and p != "self"]
+        to_resolve = [
+            p
+            for p in parameters
+            # Not already provided
+            if p not in kwargs
+            # Not self
+            and p != "self"
+            # Doesn't have a default value
+            and parameters[p].default is inspect._empty
+        ]
         missing = [p for p in to_resolve if p not in self._registry]
         assert (
             not missing
