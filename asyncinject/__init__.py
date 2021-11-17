@@ -66,7 +66,7 @@ def _make_method(method):
         results = {}
         results.update(kwargs)
         if to_resolve:
-            resolved_parameters = await self.resolve(to_resolve, _results)
+            resolved_parameters = await resolve(self, to_resolve, _results)
             results.update(resolved_parameters)
         return_value = await method(self, **results)
         if _results is not None:
@@ -77,46 +77,49 @@ def _make_method(method):
 
 
 class AsyncInject(metaclass=AsyncInjectMeta):
-    async def resolve(self, names, results=None):
-        if results is None:
-            results = {}
-
-        # Come up with an execution plan, just for these nodes
-        ts = graphlib.TopologicalSorter()
-        to_do = set(names)
-        done = set()
-        while to_do:
-            item = to_do.pop()
-            dependencies = self._graph[item]
-            ts.add(item, *dependencies)
-            done.add(item)
-            # Add any not-done dependencies to the queue
-            to_do.update({k for k in dependencies if k not in done})
-
-        ts.prepare()
-        plan = []
-        while ts.is_active():
-            node_group = ts.get_ready()
-            plan.append(node_group)
-            ts.done(*node_group)
-
-        results = {}
-        for node_group in plan:
-            awaitables = [
-                self._registry[name](
-                    self,
-                    _results=results,
-                    **{k: v for k, v in results.items() if k in self._graph[name]},
-                )
-                for name in node_group
-            ]
-            awaitable_results = await asyncio.gather(*awaitables)
-            results.update(
-                {p[0].__name__: p[1] for p in zip(awaitables, awaitable_results)}
-            )
-
-        return {key: value for key, value in results.items() if key in names}
+    pass
 
 
 class AsyncInjectAll(AsyncInject):
     pass
+
+
+async def resolve(instance, names, results=None):
+    if results is None:
+        results = {}
+
+    # Come up with an execution plan, just for these nodes
+    ts = graphlib.TopologicalSorter()
+    to_do = set(names)
+    done = set()
+    while to_do:
+        item = to_do.pop()
+        dependencies = instance._graph[item]
+        ts.add(item, *dependencies)
+        done.add(item)
+        # Add any not-done dependencies to the queue
+        to_do.update({k for k in dependencies if k not in done})
+
+    ts.prepare()
+    plan = []
+    while ts.is_active():
+        node_group = ts.get_ready()
+        plan.append(node_group)
+        ts.done(*node_group)
+
+    results = {}
+    for node_group in plan:
+        awaitables = [
+            instance._registry[name](
+                instance,
+                _results=results,
+                **{k: v for k, v in results.items() if k in instance._graph[name]},
+            )
+            for name in node_group
+        ]
+        awaitable_results = await asyncio.gather(*awaitables)
+        results.update(
+            {p[0].__name__: p[1] for p in zip(awaitables, awaitable_results)}
+        )
+
+    return {key: value for key, value in results.items() if key in names}
