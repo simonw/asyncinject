@@ -114,18 +114,16 @@ async def resolve(instance, names, results=None):
         ts.done(*node_group)
 
     for node_group in plan:
+        awaitable_names = [name for name in node_group if name in instance._registry]
         awaitables = [
             instance._registry[name](
                 instance,
                 _results=results,
                 **{k: v for k, v in results.items() if k in instance._graph[name]},
             )
-            for name in node_group
-            if name in instance._registry
+            for name in awaitable_names
         ]
         awaitable_results = await asyncio.gather(*awaitables)
-        results.update(
-            {p[0].__name__: p[1] for p in zip(awaitables, awaitable_results)}
-        )
+        results.update(dict(zip(awaitable_names, awaitable_results)))
 
     return results
