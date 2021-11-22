@@ -14,12 +14,6 @@ def inject(fn):
     return fn
 
 
-def inject_all(klass):
-    "Equivalent to applying @inject decorator to every async class method"
-    klass._inject_all = True
-    return klass
-
-
 class AsyncInjectMeta(type):
     def __new__(cls, name, bases, attrs):
         # Decorate any items that are 'async def' methods
