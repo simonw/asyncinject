@@ -50,6 +50,9 @@ def _make_method(method):
 
 
 class AsyncInject:
+    def _log(self, message):
+        pass
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         # Decorate any items that are 'async def' methods
@@ -101,8 +104,13 @@ async def resolve(instance, names, results=None):
         plan.append(node_group)
         ts.done(*node_group)
 
+    instance._log(
+        "Resolving {} in {}>".format(names, repr(instance).split(" object at ")[0])
+    )
+
     for node_group in plan:
         awaitable_names = [name for name in node_group if name in instance._registry]
+        instance._log("  Run {}".format(awaitable_names))
         awaitables = [
             instance._registry[name](
                 instance,

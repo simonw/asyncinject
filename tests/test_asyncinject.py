@@ -122,3 +122,17 @@ async def test_resolve():
     object = WithParameters()
     result = await resolve(object, ("calc1", "calc2"))
     assert result == {"calc1": 5, "calc2": 6}
+
+
+@pytest.mark.asyncio
+async def test_log():
+    collected = []
+    instance = Complex()
+    instance._log = collected.append
+    await instance.go()
+    assert collected == [
+        "Resolving ['a'] in <test_asyncinject.Complex>",
+        "  Run ['c', 'd']",
+        "  Run ['b']",
+        "  Run ['a']",
+    ]

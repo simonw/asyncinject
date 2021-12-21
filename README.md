@@ -127,6 +127,19 @@ results = await resolve(fetcher, ["example", "simonwillison"])
     "simonwillison": "contents of https://simonwillison.net/search/?tag=empty"
 }
 ```
+### Debug logging
+
+You can assign a `_log` method to your class or instance to see the execution plan when it runs. Your `_log` method should take a single `message` argument - the easiest way to do this is to use `print`:
+```python
+fetcher = FetchThings()
+fetcher._log = print
+combined = await fetcher.both()
+```
+This will output:
+```
+Resolving ['example', 'simonwillison'] in <__main__.FetchThings>
+  Run ['example', 'simonwillison']
+```
 
 ## Development
 
