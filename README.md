@@ -104,8 +104,8 @@ This will output:
 Resolving ['both']
   Run []
   Run ['get_param_2', 'get_param_1']
-  Run ['both']```
-
+  Run ['both']
+```
 ## Development
 
 To contribute to this library, first checkout the code. Then create a new virtual environment:
