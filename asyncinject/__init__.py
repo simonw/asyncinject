@@ -84,38 +84,4 @@ class AsyncRegistry:
                 awaitable_results = (await fn() for fn in awaitables)
             results.update(dict(zip(awaitable_names, awaitable_results)))
 
-        print("results:", results)
         return results
-
-
-def _make_fn(fn, registry):
-    parameters = inspect.signature(fn).parameters
-
-    @wraps(fn)
-    async def inner(**kwargs):
-        # Any parameters not provided by kwargs are resolved from registry
-        to_resolve = [
-            p
-            for p in parameters
-            # Not already provided
-            if p not in kwargs
-            # Doesn't have a default value
-            and parameters[p].default is inspect._empty
-        ]
-        missing = [p for p in to_resolve if p not in registry]
-        assert (
-            not missing
-        ), "The following DI parameters could not be found in the registry: {}".format(
-            missing
-        )
-
-        results = {}
-        results.update(kwargs)
-        if to_resolve:
-            resolved_parameters = await resolve(registry, to_resolve, results)
-            results.update(resolved_parameters)
-        return await method(
-            self, **{k: v for k, v in results.items() if k in parameters}
-        )
-
-    return inner
