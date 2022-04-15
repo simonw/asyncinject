@@ -1,88 +1,38 @@
 import asyncio
 import pytest
-from asyncinject import AsyncInject, AsyncInjectAll, inject, resolve
+from asyncinject import AsyncRegistry
 from random import random
 
 
-class Simple(AsyncInject):
-    def __init__(self):
-        self.log = []
+@pytest.fixture
+def complex_registry():
+    async def log():
+        return []
 
-    @inject
-    async def two(self):
-        self.log.append("two")
-
-    @inject
-    async def one(self, two):
-        self.log.append("one")
-        return self.log
-
-    async def not_inject(self, one, two):
-        return one + two
-
-
-class Complex(AsyncInjectAll):
-    def __init__(self):
-        self.log = []
-
-    async def d(self):
+    async def d(log):
         await asyncio.sleep(random() * 0.1)
-        self.log.append("d")
+        log.append("d")
 
-    async def c(self):
+    async def c(log):
         await asyncio.sleep(random() * 0.1)
-        self.log.append("c")
+        log.append("c")
 
-    async def b(self, c, d):
-        self.log.append("b")
+    async def b(log, c, d):
+        log.append("b")
 
-    async def a(self, b, c):
-        self.log.append("a")
+    async def a(log, b, c):
+        log.append("a")
 
-    async def go(self, a):
-        self.log.append("go")
-        return self.log
+    async def go(log, a):
+        log.append("go")
+        return log
 
-
-class WithParameters(AsyncInjectAll):
-    async def go(self, calc1, calc2, param1):
-        return param1 + calc1 + calc2
-
-    async def calc1(self):
-        return 5
-
-    async def calc2(self):
-        return 6
-
-
-class WithParametersComplex(AsyncInjectAll):
-    async def go(self, calc1, calc2, param1):
-        return calc1 + calc2
-
-    async def calc1(self):
-        return 5
-
-    async def calc2(self, param1):
-        return 6 + param1
-
-
-class IgnoreDefaultParameters(AsyncInjectAll):
-    async def go(self, calc1, x=5):
-        return calc1 + x
-
-    async def calc1(self):
-        return 5
+    return AsyncRegistry(log, d, c, b, a, go)
 
 
 @pytest.mark.asyncio
-async def test_simple():
-    assert await Simple().one() == ["two", "one"]
-    assert await Simple().not_inject(6, 7) == 13
-
-
-@pytest.mark.asyncio
-async def test_complex():
-    result = await Complex().go()
+async def test_complex(complex_registry):
+    result = await complex_registry.resolve("go")
     # 'c' should only be called once
     assert tuple(result) in (
         # c and d could happen in either order
@@ -93,46 +43,64 @@ async def test_complex():
 
 @pytest.mark.asyncio
 async def test_with_parameters():
-    result = await WithParameters().go(param1=4)
+    async def go(calc1, calc2, param1):
+        return param1 + calc1 + calc2
+
+    async def calc1():
+        return 5
+
+    async def calc2():
+        return 6
+
+    registry = AsyncRegistry(go, calc1, calc2)
+    result = await registry.resolve(go, param1=4)
     assert result == 15
 
     # Should throw an error if that parameter is missing
-    with pytest.raises(AssertionError) as e:
-        await WithParameters().go()
-        assert e.args[0] == (
-            "The following DI parameters could not be "
-            "found in the registry: ['param1']"
-        )
+    with pytest.raises(TypeError) as e:
+        result = await registry.resolve(go)
+        assert "go() missing 1 required positional" in e.args[0]
 
 
 @pytest.mark.asyncio
 async def test_parameters_passed_through():
-    result = await WithParametersComplex().go(param1=1)
+    async def go(calc1, calc2, param1):
+        return calc1 + calc2
+
+    async def calc1():
+        return 5
+
+    async def calc2(param1):
+        return 6 + param1
+
+    registry = AsyncRegistry(go, calc1, calc2)
+    result = await registry.resolve(go, param1=1)
     assert result == 12
 
 
 @pytest.mark.asyncio
 async def test_ignore_default_parameters():
-    result = await IgnoreDefaultParameters().go()
+    async def go(calc1, x=5):
+        return calc1 + x
+
+    async def calc1():
+        return 5
+
+    registry = AsyncRegistry(go, calc1)
+    result = await registry.resolve(go)
     assert result == 10
 
 
 @pytest.mark.asyncio
-async def test_resolve():
-    object = WithParameters()
-    result = await resolve(object, ("calc1", "calc2"))
-    assert result == {"calc1": 5, "calc2": 6}
-
-
-@pytest.mark.asyncio
-async def test_log():
+async def test_log(complex_registry):
     collected = []
-    instance = Complex()
-    instance._log = collected.append
-    await instance.go()
+    complex_registry.log = collected.append
+    await complex_registry.resolve("go")
     assert collected == [
-        "Resolving ['a'] in <test_asyncinject.Complex>",
+        "Resolving ['go']",
+        "  Run ['log']",
         "  Run ['c', 'd']",
         "  Run ['b']",
         "  Run ['a']",
+        "  Run ['go']",
     ]

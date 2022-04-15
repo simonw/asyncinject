@@ -16,57 +16,57 @@ Install this library using `pip`:
 
 This library is inspired by [pytest fixtures](https://docs.pytest.org/en/6.2.x/fixture.html).
 
-The idea is to simplify executing parallel `asyncio` operations by allowing them to be collected in a class, with the names of parameters to the class methods specifying which other methods should be executed first.
+The idea is to simplify executing parallel `asyncio` operations by allowing them to be defined using a collection of functions, where the function arguments represent dependent functions that need to be executed first.
 
-This then allows the library to create and execute a plan for executing various dependent methods in parallel.
+The library can then create and execute a plan for executing the required functions in parallel in the most efficient sequence possible.
 
 Here's an example, using the [httpx](https://www.python-httpx.org/) HTTP library.
 
 ```python
-from asyncinject import AsyncInjectAll
+from asyncinject import AsyncRegistry
 import httpx
+
 
 async def get(url):
     async with httpx.AsyncClient() as client:
         return (await client.get(url)).text
 
-class FetchThings(AsyncInjectAll):
-    async def example(self):
-        return await get("http://www.example.com/")
+async def example():
+    return await get("http://www.example.com/")
 
-    async def simonwillison(self):
-        return await get("https://simonwillison.net/search/?tag=empty")
+async def simonwillison():
+    return await get("https://simonwillison.net/search/?tag=empty")
 
-    async def both(self, example, simonwillison):
-        return example + "\n\n" + simonwillison
+async def both(example, simonwillison):
+    return example + "\n\n" + simonwillison
 
-
-combined = await FetchThings().both()
+registry = AsyncRegistry(example, simonwillison, both)
+combined = await registry.resolve(both)
 print(combined)
 ```
 If you run this in `ipython` (which supports top-level await) you will see output that combines HTML from both of those pages.
 
 The HTTP requests to `www.example.com` and `simonwillison.net` will be performed in parallel.
 
-The library will notice that `both()` takes two arguments which are the names of other `async def` methods on that class, and will construct an execution plan that executes those two methods in parallel, then passes their results to the `both()` method.
+The library notices that `both()` takes two arguments which are the names of other registered `async def` functions, and will construct an execution plan that executes those two functions in parallel, then passes their results to the `both()` method.
 
 ### Parameters are passed through
 
-Your dependent methods can require keyword arguments which are passed to the original method.
+Your dependent functions can require keyword arguments which have been passed to the `.resolve()` call:
 
 ```python
-class FetchWithParams(AsyncInjectAll):
-    async def get_param_1(self, param1):
-        return await get(param1)
+async def get_param_1(param1):
+    return await get(param1)
 
-    async def get_param_2(self, param2):
-        return await get(param2)
+async def get_param_2(param2):
+    return await get(param2)
 
-    async def both(self, get_param_1, get_param_2):
-        return get_param_1 + "\n\n" + get_param_2
+async def both(get_param_1, get_param_2):
+    return get_param_1 + "\n\n" + get_param_2
 
 
-combined = await FetchWithParams().both(
+combined = await AsyncRegistry(get_param_1, get_param_2, both).resolve(
+    both,
     param1 = "http://www.example.com/",
     param2 = "https://simonwillison.net/search/?tag=empty"
 )
@@ -77,70 +77,35 @@ print(combined)
 You can opt a parameter out of the dependency injection mechanism by assigning it a default value:
 
 ```python
-class IgnoreDefaultParameters(AsyncInjectAll):
-    async def go(self, calc1, x=5):
-        return calc1 + x
+async def go(calc1, x=5):
+    return calc1 + x
 
-    async def calc1(self):
-        return 5
+async def calc1():
+    return 5
 
-print(await IgnoreDefaultParameters().go())
+print(await AsyncRegistry(calc1, go).resolve(go))
 # Prints 10
 ```
 
-### AsyncInject and @inject
-
-The above example illustrates the `AsyncInjectAll` class, which assumes that every `async def` method on the class should be treated as a dependency injection method.
-
-You can also specify individual methods using the `AsyncInject` base class an the `@inject` decorator:
-
-```python
-from asyncinject import AsyncInject, inject
-
-class FetchThings(AsyncInject):
-    @inject
-    async def example(self):
-        return await get("http://www.example.com/")
-
-    @inject
-    async def simonwillison(self):
-        return await get("https://simonwillison.net/search/?tag=empty")
-
-    @inject
-    async def both(self, example, simonwillison):
-        return example + "\n\n" + simonwillison
-```
-### The resolve() function
-
-If you want to execute a set of methods in parallel without defining a third method that lists them as parameters, you can do so using the `resolve()` function. This will execute the specified methods (in parallel, where possible) and return a dictionary of the results.
-
-```python
-from asyncinject import resolve
-
-fetcher = FetchThings()
-results = await resolve(fetcher, ["example", "simonwillison"])
-```
-`results` will now be:
-```json
-{
-    "example": "contents of http://www.example.com/",
-    "simonwillison": "contents of https://simonwillison.net/search/?tag=empty"
-}
-```
 ### Debug logging
 
-You can assign a `_log` method to your class or instance to see the execution plan when it runs. Your `_log` method should take a single `message` argument - the easiest way to do this is to use `print`:
+You can pass a `log=` callable to the `AsyncRegistry` constructor.  Your function should take a single `message` argument - the easiest way to do this is to use `print`:
 ```python
-fetcher = FetchThings()
-fetcher._log = print
-combined = await fetcher.both()
+combined = await AsyncRegistry(
+    get_param_1, get_param_2, both, log=print
+).resolve(
+    both,
+    param1 = "http://www.example.com/",
+    param2 = "https://simonwillison.net/search/?tag=empty"
+)
 ```
 This will output:
 ```
-Resolving ['example', 'simonwillison'] in <__main__.FetchThings>
-  Run ['example', 'simonwillison']
+Resolving ['both']
+  Run []
+  Run ['get_param_2', 'get_param_1']
+  Run ['both']
 ```
-
 ## Development
 
 To contribute to this library, first checkout the code. Then create a new virtual environment:
@@ -148,10 +113,6 @@ To contribute to this library, first checkout the code. Then create a new virtua
     cd asyncinject
     python -m venv venv
     source venv/bin/activate
-
-Or if you are using `pipenv`:
-
-    pipenv shell
 
 Now install the dependencies and test dependencies:
 
