@@ -1,6 +1,10 @@
 from functools import wraps
 import inspect
-import graphlib
+
+try:
+    import graphlib
+except ImportError:
+    from . import vendored_graphlib as graphlib
 import asyncio
 
 
