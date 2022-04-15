@@ -67,7 +67,7 @@ class AsyncRegistry:
 
         for node_group in plan:
             awaitable_names = [name for name in node_group if name in self._registry]
-            self.log("  Run {}".format(awaitable_names))
+            self.log("  Run {}".format(sorted(awaitable_names)))
             awaitables = [
                 self._registry[name](
                     **{k: v for k, v in results.items() if k in self.graph[name]},
