@@ -25,11 +25,7 @@ class AsyncRegistry:
     def graph(self):
         if self._graph is None:
             self._graph = {
-                key: {
-                    p
-                    for p in inspect.signature(fn).parameters.keys()
-                    if not p.startswith("_")
-                }
+                key: set(inspect.signature(fn).parameters.keys())
                 for key, fn in self._registry.items()
             }
         return self._graph
