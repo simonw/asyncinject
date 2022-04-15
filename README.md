@@ -23,7 +23,7 @@ The library can then create and execute a plan for executing the required functi
 Here's an example, using the [httpx](https://www.python-httpx.org/) HTTP library.
 
 ```python
-from asyncinject import AsyncRegistry
+from asyncinject import Registry
 import httpx
 
 
@@ -40,7 +40,7 @@ async def simonwillison():
 async def both(example, simonwillison):
     return example + "\n\n" + simonwillison
 
-registry = AsyncRegistry(example, simonwillison, both)
+registry = Registry(example, simonwillison, both)
 combined = await registry.resolve(both)
 print(combined)
 ```
@@ -65,7 +65,7 @@ async def both(get_param_1, get_param_2):
     return get_param_1 + "\n\n" + get_param_2
 
 
-combined = await AsyncRegistry(get_param_1, get_param_2, both).resolve(
+combined = await Registry(get_param_1, get_param_2, both).resolve(
     both,
     param1 = "http://www.example.com/",
     param2 = "https://simonwillison.net/search/?tag=empty"
@@ -83,15 +83,15 @@ async def go(calc1, x=5):
 async def calc1():
     return 5
 
-print(await AsyncRegistry(calc1, go).resolve(go))
+print(await Registry(calc1, go).resolve(go))
 # Prints 10
 ```
 
 ### Debug logging
 
-You can pass a `log=` callable to the `AsyncRegistry` constructor.  Your function should take a single `message` argument - the easiest way to do this is to use `print`:
+You can pass a `log=` callable to the `Registry` constructor.  Your function should take a single `message` argument - the easiest way to do this is to use `print`:
 ```python
-combined = await AsyncRegistry(
+combined = await Registry(
     get_param_1, get_param_2, both, log=print
 ).resolve(
     both,

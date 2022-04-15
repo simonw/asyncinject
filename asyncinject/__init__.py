@@ -7,7 +7,7 @@ except ImportError:
 import asyncio
 
 
-class AsyncRegistry:
+class Registry:
     def __init__(self, *fns, parallel=True, log=None):
         self._registry = {}
         self._graph = None

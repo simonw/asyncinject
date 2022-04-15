@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from asyncinject import AsyncRegistry
+from asyncinject import Registry
 from random import random
 
 
@@ -27,7 +27,7 @@ def complex_registry():
         log.append("go")
         return log
 
-    return AsyncRegistry(log, d, c, b, a, go)
+    return Registry(log, d, c, b, a, go)
 
 
 @pytest.mark.asyncio
@@ -52,7 +52,7 @@ async def test_with_parameters():
     async def calc2():
         return 6
 
-    registry = AsyncRegistry(go, calc1, calc2)
+    registry = Registry(go, calc1, calc2)
     result = await registry.resolve(go, param1=4)
     assert result == 15
 
@@ -73,7 +73,7 @@ async def test_parameters_passed_through():
     async def calc2(param1):
         return 6 + param1
 
-    registry = AsyncRegistry(go, calc1, calc2)
+    registry = Registry(go, calc1, calc2)
     result = await registry.resolve(go, param1=1)
     assert result == 12
 
@@ -86,7 +86,7 @@ async def test_ignore_default_parameters():
     async def calc1():
         return 5
 
-    registry = AsyncRegistry(go, calc1)
+    registry = Registry(go, calc1)
     result = await registry.resolve(go)
     assert result == 10
 
