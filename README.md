@@ -87,12 +87,19 @@ print(await Registry(calc1, go).resolve(go))
 # Prints 10
 ```
 
-### Debug logging
+### Tracking with a timer
 
-You can pass a `log=` callable to the `Registry` constructor.  Your function should take a single `message` argument - the easiest way to do this is to use `print`:
+You can pass a `timer=` callable to the `Registry` constructor to gather timing information about executed tasks..  Your function should take three positional arguments:
+
+- `name` - the name of the function that is being timed
+- `start` - the time that it started executing, using `time.perf_counter()` ([perf_counter() docs](https://docs.python.org/3/library/time.html#time.perf_counter))
+- `end` - the time that it finished executing
+
+You can use `print` here too:
+
 ```python
 combined = await Registry(
-    get_param_1, get_param_2, both, log=print
+    get_param_1, get_param_2, both, timer=print
 ).resolve(
     both,
     param1 = "http://www.example.com/",
@@ -101,11 +108,18 @@ combined = await Registry(
 ```
 This will output:
 ```
-Resolving ['both']
-  Run []
-  Run ['get_param_2', 'get_param_1']
-  Run ['both']
+get_param_1 436633.584580685 436633.797921747
+get_param_2 436633.641832699 436634.196364347
+both 436634.196570217 436634.196575639
 ```
+### Turning off parallel execution
+
+By default, functions that can run in parallel according to the execution plan will run in parallel using `asyncio.gather()`.
+
+You can disable this parallel exection by passing `parallel=False` to the `Registry` constructor, or by setting `registry.parallel = False` after the registry object has been created.
+
+This is mainly useful for benchmarking the difference between parallel and serial execution for your project.
+
 ## Development
 
 To contribute to this library, first checkout the code. Then create a new virtual environment:

@@ -1,4 +1,5 @@
 import inspect
+import time
 
 try:
     import graphlib
@@ -8,11 +9,11 @@ import asyncio
 
 
 class Registry:
-    def __init__(self, *fns, parallel=True, log=None):
+    def __init__(self, *fns, parallel=True, timer=None):
         self._registry = {}
         self._graph = None
         self.parallel = parallel
-        self.log = log or (lambda *args: None)
+        self.timer = timer
         for fn in fns:
             self.register(fn)
 
@@ -20,6 +21,16 @@ class Registry:
         self._registry[fn.__name__] = fn
         # Clear _graph cache:
         self._graph = None
+
+    def _make_time_logger(self, awaitable):
+        async def inner():
+            start = time.perf_counter()
+            result = await awaitable
+            end = time.perf_counter()
+            self.timer(awaitable.__name__, start, end)
+            return result
+
+        return inner()
 
     @property
     def graph(self):
@@ -39,11 +50,10 @@ class Registry:
         results = await self.resolve_multi([name], results=kwargs)
         return results[name]
 
-    async def resolve_multi(self, names, results=None):
+    def _plan(self, names, results=None):
         if results is None:
             results = {}
 
-        # Come up with an execution plan, just for these nodes
         ts = graphlib.TopologicalSorter()
         to_do = set(names)
         done = set(results.keys())
@@ -62,21 +72,26 @@ class Registry:
             plan.append(node_group)
             ts.done(*node_group)
 
-        self.log("Resolving {}".format(names))
+        return plan
 
-        for node_group in plan:
+    async def resolve_multi(self, names, results=None):
+        if results is None:
+            results = {}
+
+        for node_group in self._plan(names, results):
             awaitable_names = [name for name in node_group if name in self._registry]
-            self.log("  Run {}".format(sorted(awaitable_names)))
             awaitables = [
                 self._registry[name](
                     **{k: v for k, v in results.items() if k in self.graph[name]},
                 )
                 for name in awaitable_names
             ]
+            if self.timer:
+                awaitables = [self._make_time_logger(a) for a in awaitables]
             if self.parallel:
                 awaitable_results = await asyncio.gather(*awaitables)
             else:
-                awaitable_results = (await fn() for fn in awaitables)
+                awaitable_results = [await fn for fn in awaitables]
             results.update(dict(zip(awaitable_names, awaitable_results)))
 
         return results

@@ -3,6 +3,8 @@ import pytest
 from asyncinject import Registry
 from random import random
 
+from pprint import pprint
+
 
 @pytest.fixture
 def complex_registry():
@@ -92,15 +94,18 @@ async def test_ignore_default_parameters():
 
 
 @pytest.mark.asyncio
-async def test_log(complex_registry):
+async def test_timer(complex_registry):
     collected = []
-    complex_registry.log = collected.append
+    complex_registry.timer = lambda name, start, end: collected.append(
+        (name, start, end)
+    )
     await complex_registry.resolve("go")
-    assert collected == [
-        "Resolving ['go']",
-        "  Run ['log']",
-        "  Run ['c', 'd']",
-        "  Run ['b']",
-        "  Run ['a']",
-        "  Run ['go']",
-    ]
+    assert len(collected) == 6
+    names = [c[0] for c in collected]
+    starts = [c[1] for c in collected]
+    ends = [c[2] for c in collected]
+    assert all(isinstance(n, float) for n in starts)
+    assert all(isinstance(n, float) for n in ends)
+    assert names[0] == "log"
+    assert names[5] == "go"
+    assert sorted(names[1:5]) == ["a", "b", "c", "d"]
