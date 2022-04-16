@@ -12,11 +12,11 @@ def complex_registry():
         return []
 
     async def d(log):
-        await asyncio.sleep(random() * 0.1)
+        await asyncio.sleep(0.1 + random() * 0.5)
         log.append("d")
 
     async def c(log):
-        await asyncio.sleep(random() * 0.1)
+        await asyncio.sleep(0.1 + random() * 0.5)
         log.append("c")
 
     async def b(log, c, d):
@@ -109,3 +109,26 @@ async def test_timer(complex_registry):
     assert names[0] == "log"
     assert names[5] == "go"
     assert sorted(names[1:5]) == ["a", "b", "c", "d"]
+
+
+@pytest.mark.asyncio
+async def test_parallel(complex_registry):
+    collected = []
+    complex_registry.timer = lambda name, start, end: collected.append(
+        (name, start, end)
+    )
+    # Run it once in parallel=True mode
+    await complex_registry.resolve("go")
+    parallel_timings = {c[0]: (c[1], c[2]) for c in collected}
+    # 'c' and 'd' should have started within 0.05s
+    c_start, d_start = parallel_timings["c"][0], parallel_timings["d"][0]
+    assert abs(c_start - d_start) < 0.05
+
+    # And again in parallel=False mode
+    collected.clear()
+    complex_registry.parallel = False
+    await complex_registry.resolve("go")
+    serial_timings = {c[0]: (c[1], c[2]) for c in collected}
+    # 'c' and 'd' should have started at least 0.1s apart
+    c_start_serial, d_start_serial = serial_timings["c"][0], serial_timings["d"][0]
+    assert abs(c_start_serial - d_start_serial) > 0.1
