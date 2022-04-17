@@ -65,33 +65,52 @@ class Registry:
             # Add any not-done dependencies to the queue
             to_do.update({k for k in dependencies if k not in done})
 
+        return ts
+
+    def _get_awaitable(self, name, results):
+        aw = self._registry[name](
+            **{k: v for k, v in results.items() if k in self.graph[name]},
+        )
+        if self.timer:
+            aw = self._make_time_logger(aw)
+        return aw
+    
+    async def _execute_sequential(self, results, ts):
+        for name in ts.static_order():
+            if name not in self._registry:
+                continue
+            results[name] = await self._get_awaitable(name, results)
+
+    async def _execute_parallel(self, results, ts):
         ts.prepare()
-        plan = []
-        while ts.is_active():
-            node_group = ts.get_ready()
-            plan.append(node_group)
-            ts.done(*node_group)
+        tasks = []
 
-        return plan
+        def schedule():
+            for name in ts.get_ready():
+                if name not in self._registry:
+                    ts.done(name)
+                    continue
+                tasks.append(asyncio.create_task(worker(name)))
 
+        async def worker(name):
+            res = await self._get_awaitable(name, results)
+            results[name] = res
+            ts.done(name)
+            schedule()
+
+        schedule()
+        while tasks:
+            await asyncio.gather(*[tasks.pop() for _ in range(len(tasks))])
+ 
     async def resolve_multi(self, names, results=None):
         if results is None:
             results = {}
+        
+        ts = self._plan(names, results)
 
-        for node_group in self._plan(names, results):
-            awaitable_names = [name for name in node_group if name in self._registry]
-            awaitables = [
-                self._registry[name](
-                    **{k: v for k, v in results.items() if k in self.graph[name]},
-                )
-                for name in awaitable_names
-            ]
-            if self.timer:
-                awaitables = [self._make_time_logger(a) for a in awaitables]
-            if self.parallel:
-                awaitable_results = await asyncio.gather(*awaitables)
-            else:
-                awaitable_results = [await fn for fn in awaitables]
-            results.update(dict(zip(awaitable_names, awaitable_results)))
+        if self.parallel:
+            await self._execute_parallel(results, ts)
+        else:
+            await self._execute_sequential(results, ts)
 
         return results
