@@ -74,7 +74,7 @@ class Registry:
         if self.timer:
             aw = self._make_time_logger(aw)
         return aw
-    
+
     async def _execute_sequential(self, results, ts):
         for name in ts.static_order():
             if name not in self._registry:
@@ -101,11 +101,11 @@ class Registry:
         schedule()
         while tasks:
             await asyncio.gather(*[tasks.pop() for _ in range(len(tasks))])
- 
+
     async def resolve_multi(self, names, results=None):
         if results is None:
             results = {}
-        
+
         ts = self._plan(names, results)
 
         if self.parallel:

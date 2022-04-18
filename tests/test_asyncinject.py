@@ -2,8 +2,7 @@ import asyncio
 import pytest
 from asyncinject import Registry
 from random import random
-
-from pprint import pprint
+import time
 
 
 @pytest.fixture
@@ -132,3 +131,26 @@ async def test_parallel(complex_registry):
     # 'c' and 'd' should have started at least 0.1s apart
     c_start_serial, d_start_serial = serial_timings["c"][0], serial_timings["d"][0]
     assert abs(c_start_serial - d_start_serial) > 0.1
+
+
+@pytest.mark.asyncio
+async def test_optimal_concurrency():
+    # https://github.com/simonw/asyncinject/issues/10
+    async def a():
+        await asyncio.sleep(0.1)
+
+    async def b():
+        await asyncio.sleep(0.2)
+
+    async def c(a):
+        await asyncio.sleep(0.1)
+
+    async def d(b, c):
+        pass
+
+    registry = Registry(a, b, c, d)
+    start = time.perf_counter()
+    await registry.resolve(d)
+    end = time.perf_counter()
+    # Should have taken ~0.2s
+    assert 0.18 < (end - start) < 0.22
