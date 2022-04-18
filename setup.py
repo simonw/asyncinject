@@ -29,5 +29,5 @@ setup(
     packages=["asyncinject"],
     install_requires=[],
     extras_require={"test": ["pytest", "pytest-asyncio"]},
-    python_requires=">=3.6",
+    python_requires=">=3.7",
 )
