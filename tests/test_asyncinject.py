@@ -154,3 +154,30 @@ async def test_optimal_concurrency():
     end = time.perf_counter()
     # Should have taken ~0.2s
     assert 0.18 < (end - start) < 0.22
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_async", (True, False))
+async def test_resolve_unregistered_function(use_async):
+    # https://github.com/simonw/asyncinject/issues/13
+    async def one():
+        return 1
+
+    async def two():
+        return 2
+
+    registry = Registry(one, two)
+
+    async def three_async(one, two):
+        return one + two
+
+    def three_not_async(one, two):
+        return one + two
+
+    fn = three_async if use_async else three_not_async
+    result = await registry.resolve(fn)
+    assert result == 3
+
+    # Test that passing parameters works too
+    result2 = await registry.resolve(fn, one=2)
+    assert result2 == 4

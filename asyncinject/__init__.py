@@ -12,6 +12,7 @@ class Registry:
     def __init__(self, *fns, parallel=True, timer=None):
         self._registry = {}
         self._graph = None
+        self._reversed = None
         self.parallel = parallel
         self.timer = timer
         for fn in fns:
@@ -19,8 +20,9 @@ class Registry:
 
     def register(self, fn):
         self._registry[fn.__name__] = fn
-        # Clear _graph cache:
+        # Clear caches:
         self._graph = None
+        self._reversed = None
 
     def _make_time_logger(self, awaitable):
         async def inner():
@@ -41,12 +43,28 @@ class Registry:
             }
         return self._graph
 
-    async def resolve(self, fn, **kwargs):
-        try:
-            name = fn.__name__
-        except AttributeError:
-            name = fn
+    @property
+    def reversed(self):
+        if self._reversed is None:
+            self._reversed = dict(reversed(pair) for pair in self._registry.items())
+        return self._reversed
 
+    async def resolve(self, fn, **kwargs):
+        if not isinstance(fn, str):
+            # It's a fn - is it a registered one?
+            name = self.reversed.get(fn)
+            if name is None:
+                # Special case - since it is not registered we need to
+                # introspect its parameters here and use resolve_multi
+                params = inspect.signature(fn).parameters.keys()
+                to_resolve = {p for p in params if p not in kwargs}
+                resolved = await self.resolve_multi(to_resolve, results=kwargs)
+                result = fn(**{param: resolved[param] for param in params})
+                if asyncio.iscoroutine(result):
+                    result = await result
+                return result
+        else:
+            name = fn
         results = await self.resolve_multi([name], results=kwargs)
         return results[name]
 

@@ -50,6 +50,29 @@ The HTTP requests to `www.example.com` and `simonwillison.net` will be performed
 
 The library notices that `both()` takes two arguments which are the names of other registered `async def` functions, and will construct an execution plan that executes those two functions in parallel, then passes their results to the `both()` method.
 
+### Resolving an unregistered function
+
+You don't need to register the final function that you pass to `.resolve()` - if you pass an unregistered function, the library will introspect the function's parameters and resolve them directly.
+
+This works with both regular and async functions:
+
+```python
+async def one():
+    return 1
+
+async def two():
+    return 2
+
+registry = Registry(one, two)
+
+# async def works here too:
+def three(one, two):
+    return one + two
+
+print(await registry.resolve(three))
+# Prints 3
+```
+
 ### Parameters are passed through
 
 Your dependent functions can require keyword arguments which have been passed to the `.resolve()` call:
