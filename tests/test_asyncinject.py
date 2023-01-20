@@ -187,7 +187,8 @@ async def test_resolve_unregistered_function(use_async):
 async def test_register():
     registry = Registry()
 
-    async def one():
+    # Mix in a non-async function too:
+    def one():
         return "one"
 
     async def two_():
@@ -207,3 +208,26 @@ async def test_register():
     result = await registry.resolve(three)
 
     assert result == "onetwo"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parallel", (True, False))
+async def test_just_sync_functions(parallel):
+    def one():
+        return 1
+
+    def two():
+        return 2
+
+    def three(one, two):
+        return one + two
+
+    timed = []
+
+    registry = Registry(
+        one, two, three, parallel=parallel, timer=lambda *args: timed.append(args)
+    )
+    result = await registry.resolve(three)
+    assert result == 3
+
+    assert {t[0] for t in timed} == {"two", "one", "three"}

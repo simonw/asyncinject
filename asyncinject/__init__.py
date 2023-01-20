@@ -86,9 +86,20 @@ class Registry:
         return ts
 
     def _get_awaitable(self, name, results):
-        aw = self._registry[name](
-            **{k: v for k, v in results.items() if k in self.graph[name]},
-        )
+        fn = self._registry[name]
+        kwargs = {k: v for k, v in results.items() if k in self.graph[name]}
+
+        awaitable_fn = fn
+
+        if not asyncio.iscoroutinefunction(fn):
+
+            async def _awaitable(*args, **kwargs):
+                return fn(*args, **kwargs)
+
+            _awaitable.__name__ = fn.__name__
+            awaitable_fn = _awaitable
+
+        aw = awaitable_fn(**kwargs)
         if self.timer:
             aw = self._make_time_logger(aw)
         return aw

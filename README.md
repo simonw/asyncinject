@@ -44,13 +44,15 @@ registry = Registry(example, simonwillison, both)
 combined = await registry.resolve(both)
 print(combined)
 ```
-If you run this in `ipython` (which supports top-level await) you will see output that combines HTML from both of those pages.
+If you run this in `ipython` or `python -m asyncio` (to enable top-level await in the console) you will see output that combines HTML from both of those pages.
 
 The HTTP requests to `www.example.com` and `simonwillison.net` will be performed in parallel.
 
 The library notices that `both()` takes two arguments which are the names of other registered `async def` functions, and will construct an execution plan that executes those two functions in parallel, then passes their results to the `both()` method.
 
 ### Registering additional functions
+
+Functions that are registered can be regular functions or `async def` functions.
 
 In addition to registering functions by passing them to the constructor, you can also add them to a registry using the `.register()` method:
 
