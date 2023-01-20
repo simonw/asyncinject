@@ -18,8 +18,8 @@ class Registry:
         for fn in fns:
             self.register(fn)
 
-    def register(self, fn):
-        self._registry[fn.__name__] = fn
+    def register(self, fn, *, name=None):
+        self._registry[name or fn.__name__] = fn
         # Clear caches:
         self._graph = None
         self._reversed = None

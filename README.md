@@ -50,6 +50,24 @@ The HTTP requests to `www.example.com` and `simonwillison.net` will be performed
 
 The library notices that `both()` takes two arguments which are the names of other registered `async def` functions, and will construct an execution plan that executes those two functions in parallel, then passes their results to the `both()` method.
 
+### Registering additional functions
+
+In addition to registering functions by passing them to the constructor, you can also add them to a registry using the `.register()` method:
+
+```python
+async def another():
+    return "another"
+
+registry.register(another)
+```
+To register them with a name other than the name of the function, pass the `name=` argument:
+```python
+async def another():
+    return "another 2"
+
+registry.register(another, name="another_2")
+```
+
 ### Resolving an unregistered function
 
 You don't need to register the final function that you pass to `.resolve()` - if you pass an unregistered function, the library will introspect the function's parameters and resolve them directly.

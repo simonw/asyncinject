@@ -181,3 +181,29 @@ async def test_resolve_unregistered_function(use_async):
     # Test that passing parameters works too
     result2 = await registry.resolve(fn, one=2)
     assert result2 == 4
+
+
+@pytest.mark.asyncio
+async def test_register():
+    registry = Registry()
+
+    async def one():
+        return "one"
+
+    async def two_():
+        return "two"
+
+    async def three(one, two):
+        return one + two
+
+    registry.register(one)
+
+    # Should raise an error if you don't use name=
+    with pytest.raises(TypeError):
+        registry.register(two_, "two")
+
+    registry.register(two_, name="two")
+
+    result = await registry.resolve(three)
+
+    assert result == "onetwo"
