@@ -18,6 +18,13 @@ class Registry:
         for fn in fns:
             self.register(fn)
 
+    @classmethod
+    def from_dict(cls, d, parallel=True, timer=None):
+        instance = cls(parallel=parallel, timer=timer)
+        for key, fn in d.items():
+            instance.register(fn, name=key)
+        return instance
+
     def register(self, fn, *, name=None):
         self._registry[name or fn.__name__] = fn
         # Clear caches:

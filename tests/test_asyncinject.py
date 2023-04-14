@@ -231,3 +231,23 @@ async def test_just_sync_functions(parallel):
     assert result == 3
 
     assert {t[0] for t in timed} == {"two", "one", "three"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("use_string_name", (True, False))
+async def test_registry_from_dict(use_string_name):
+    async def _one():
+        return 1
+
+    async def _two():
+        return 2
+
+    async def _three(one, two):
+        return one + two
+
+    registry = Registry.from_dict({"one": _one, "two": _two, "three": _three})
+    if use_string_name:
+        result = await registry.resolve("three")
+    else:
+        result = await registry.resolve(_three)
+    assert result == 3

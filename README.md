@@ -50,6 +50,21 @@ The HTTP requests to `www.example.com` and `simonwillison.net` will be performed
 
 The library notices that `both()` takes two arguments which are the names of other registered `async def` functions, and will construct an execution plan that executes those two functions in parallel, then passes their results to the `both()` method.
 
+### Registry.from_dict()
+
+Passing a list of functions to the `Registry` constructor will register each function under their introspected function name, using `fn.__name__`.
+
+You can set explicit names instead using a dictionary:
+
+```python
+registry = Registry.from_dict({
+    "example": example,
+    "simonwillison": simonwillison,
+    "both": both
+})
+```
+Those string names will be used to match parameters, so each function will need to accept parameters named after the keys used in that dictionary.
+
 ### Registering additional functions
 
 Functions that are registered can be regular functions or `async def` functions.
