@@ -1,0 +1,23 @@
+[project]
+name = "asyncinject"
+version = "0.6"
+description = "Run async workflows using pytest-fixtures-style dependency injection"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{name = "Simon Willison"}]
+license = "Apache-2.0"
+classifiers = []
+dependencies = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/simonw/asyncinject"
+Changelog = "https://github.com/simonw/asyncinject/releases"
+Issues = "https://github.com/simonw/asyncinject/issues"
+CI = "https://github.com/simonw/asyncinject/actions"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-asyncio"]
