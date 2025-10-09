@@ -98,7 +98,7 @@ class Registry:
 
         awaitable_fn = fn
 
-        if not asyncio.iscoroutinefunction(fn):
+        if not inspect.iscoroutinefunction(fn):
 
             async def _awaitable(*args, **kwargs):
                 return fn(*args, **kwargs)
