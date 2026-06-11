@@ -112,21 +112,32 @@ class Registry:
         return aw
 
     async def _execute_sequential(self, results, ts):
+        # Values seeded in results take precedence over registered functions
+        seeded = set(results.keys())
         for name in ts.static_order():
-            if name not in self._registry:
+            if name in seeded or name not in self._registry:
                 continue
             results[name] = await self._get_awaitable(name, results)
 
     async def _execute_parallel(self, results, ts):
         ts.prepare()
         tasks = []
+        # Values seeded in results take precedence over registered functions
+        seeded = set(results.keys())
 
         def schedule():
-            for name in ts.get_ready():
-                if name not in self._registry:
-                    ts.done(name)
-                    continue
-                tasks.append(asyncio.create_task(worker(name)))
+            # Marking a node done can make new nodes ready, so keep asking
+            # for ready nodes until there are none left - get_ready() never
+            # returns the same node twice so this always terminates
+            while True:
+                ready = ts.get_ready()
+                if not ready:
+                    break
+                for name in ready:
+                    if name in seeded or name not in self._registry:
+                        ts.done(name)
+                    else:
+                        tasks.append(asyncio.create_task(worker(name)))
 
         async def worker(name):
             res = await self._get_awaitable(name, results)
