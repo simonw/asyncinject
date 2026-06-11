@@ -251,3 +251,37 @@ async def test_registry_from_dict(use_string_name):
     else:
         result = await registry.resolve(_three)
     assert result == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parallel", (True, False))
+async def test_resolve_with_only_seeded_dependencies(parallel):
+    # The parallel executor used to stall when every initially-ready
+    # node was an unregistered value seeded via results=
+    async def b(a):
+        return a + 1
+
+    registry = Registry(b, parallel=parallel)
+    result = await registry.resolve(b, a=1)
+    assert result == 2
+
+    results = await registry.resolve_multi(["b"], results={"a": 5})
+    assert results["b"] == 6
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parallel", (True, False))
+async def test_seeded_results_override_registered_functions(parallel):
+    calls = []
+
+    async def expensive():
+        calls.append("expensive")
+        return 5
+
+    async def consumer(expensive):
+        return expensive + 1
+
+    registry = Registry(expensive, consumer, parallel=parallel)
+    results = await registry.resolve_multi(["consumer"], results={"expensive": 10})
+    assert results["consumer"] == 11
+    assert calls == []
