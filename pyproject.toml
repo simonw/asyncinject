@@ -1,6 +1,6 @@
 [project]
 name = "asyncinject"
-version = "0.6.1"
+version = "0.7"
 description = "Run async workflows using pytest-fixtures-style dependency injection"
 readme = "README.md"
 requires-python = ">=3.10"
